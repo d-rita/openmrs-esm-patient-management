@@ -21,6 +21,7 @@ const AppointmentsHeader: React.FC<AppointmentHeaderProps> = ({ title, onChange 
   const [appointmentDate, setDateTime] = useState(new Date());
   const location = session?.sessionLocation?.display;
   const { serviceTypes } = useAppointmentServices();
+
   return (
     <div className={styles.header}>
       <div className={styles['left-justified-items']}>
