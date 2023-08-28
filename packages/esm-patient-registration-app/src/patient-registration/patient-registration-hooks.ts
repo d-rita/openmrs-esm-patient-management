@@ -6,7 +6,6 @@ import useSWR from 'swr';
 import { v4 } from 'uuid';
 import { RegistrationConfig } from '../config-schema';
 import { patientRegistration } from '../constants';
-import { useConceptAnswers, useGlobalProperties } from '../patient-verification/patient-verification-hook';
 import {
   FormValues,
   PatientRegistration,
@@ -14,7 +13,6 @@ import {
   PersonAttributeResponse,
   PatientIdentifierResponse,
   ObsResponse,
-  ConceptAnswers,
   Encounter,
 } from './patient-registration.types';
 import {
@@ -28,13 +26,13 @@ import { useInitialPatientRelationships } from './section/patient-relationships/
 import dayjs from 'dayjs';
 
 export function useInitialFormValues(patientUuid: string): [FormValues, Dispatch<FormValues>] {
-  const { martialStatus, education, occupation, educationLoad, loadingStatus } = useConcepts();
+  // const { martialStatus, education, occupation, educationLoad, loadingStatus } = useConcepts();
   const { isLoading: isLoadingPatientToEdit, patient: patientToEdit } = usePatient(patientUuid);
   const { data: attributes, isLoading: isLoadingAttributes } = useInitialPersonAttributes(patientUuid);
   const { data: identifiers, isLoading: isLoadingIdentifiers } = useInitialPatientIdentifiers(patientUuid);
   const { data: relationships, isLoading: isLoadingRelationships } = useInitialPatientRelationships(patientUuid);
   const { data: obs, isLoading: isLoadingObs, obs: observations } = usePatientObs(patientUuid);
-  const { data: token, isLoading: isLoadingToken } = useGlobalProperties();
+  // const { data: token, isLoading: isLoadingToken } = useGlobalProperties();
   const [initialFormValues, setInitialFormValues] = useState<FormValues>({
     patientUuid: v4(),
     givenName: '',
@@ -95,11 +93,11 @@ export function useInitialFormValues(patientUuid: string): [FormValues, Dispatch
 
   // Setting authentication token
 
-  useEffect(() => {
-    if (!isLoadingToken && token) {
-      setInitialFormValues((initialFormValues) => ({ ...initialFormValues, token: String(token.access_token) }));
-    }
-  }, [isLoadingToken, token]);
+  // useEffect(() => {
+  //   if (!isLoadingToken && token) {
+  //     setInitialFormValues((initialFormValues) => ({ ...initialFormValues, token: String(token.access_token) }));
+  //   }
+  // }, [isLoadingToken, token]);
 
   // Set initial patient relationships
   useEffect(() => {
@@ -146,17 +144,6 @@ export function useInitialFormValues(patientUuid: string): [FormValues, Dispatch
       setInitialFormValues((initialFormValues) => ({ ...initialFormValues, obs: obs, observation: observations }));
     }
   }, [isLoadingObs]);
-
-  // Set Initial encounter
-
-  useEffect(() => {
-    if (!educationLoad || !loadingStatus) {
-      setInitialFormValues((initialFormValues) => ({
-        ...initialFormValues,
-        concepts: [...occupation, ...martialStatus, ...education],
-      }));
-    }
-  }, [educationLoad, loadingStatus]);
 
   return [initialFormValues, setInitialFormValues];
 }
@@ -310,41 +297,4 @@ export function usePatientObs(patientUuid: string) {
     Object.assign(obsObject, { [ob.concept.uuid]: ob.value.uuid });
   });
   return { data: obsObject, isLoading, error, obs: data?.data };
-}
-
-function useConcepts() {
-  const { data: martialStatus, isLoading: loadingStatus } = useConceptAnswers('1054AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA');
-  const { data: education, isLoading: educationLoad } = useConceptAnswers('1712AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA');
-  const occupation: Array<ConceptAnswers> = [
-    {
-      uuid: '1538AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
-      display: 'Farmer',
-    },
-    {
-      uuid: '1540AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
-      display: 'Employee',
-    },
-    {
-      uuid: '1539AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
-      display: 'Trader',
-    },
-    {
-      uuid: '159465AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
-      display: 'Student',
-    },
-    {
-      uuid: '159466AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
-      display: 'Driver',
-    },
-    {
-      uuid: '1107AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
-      display: 'None',
-    },
-    {
-      uuid: '5622AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
-      display: 'Other',
-    },
-  ];
-
-  return { martialStatus, education, occupation, loadingStatus, educationLoad };
 }

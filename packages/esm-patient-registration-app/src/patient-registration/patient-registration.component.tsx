@@ -58,7 +58,7 @@ export const PatientRegistration: React.FC<PatientRegistrationProps> = ({ savePa
   const savePatientTransactionManager = useRef(new SavePatientTransactionManager());
   const fieldDefinition = config?.fieldDefinitions?.filter((def) => def.type === 'address');
   const [enableClientRegistry, setEnableClientRegistry] = useState(
-    inEditMode ? initialFormValues.identifiers['nationalUniquePatientIdentifier']?.identifierValue : false,
+    inEditMode ? initialFormValues['identifiers'] : false,
   );
 
   useEffect(() => {
@@ -176,7 +176,7 @@ export const PatientRegistration: React.FC<PatientRegistrationProps> = ({ savePa
                 ))}
                 <Button
                   renderIcon={ShareKnowledge}
-                  disabled={!currentSession || !identifierTypes}
+                  disabled={!currentSession || !initialFormValues['identifiers']}
                   onClick={() => {
                     setEnableClientRegistry(true);
                     props.isValid
@@ -204,7 +204,7 @@ export const PatientRegistration: React.FC<PatientRegistrationProps> = ({ savePa
             <div className={styles.infoGrid}>
               <PatientRegistrationContext.Provider
                 value={{
-                  identifierTypes: identifierTypes,
+                  identifierTypes,
                   validationSchema,
                   setValidationSchema,
                   values: props.values,

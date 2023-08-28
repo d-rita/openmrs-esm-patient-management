@@ -65,7 +65,6 @@ const PatientIdentifierOverlay: React.FC<PatientIdentifierOverlayProps> = ({ clo
       }
       return unsavedIdentifierTypes;
     });
-
   const handleSelectingIdentifierSource = (identifierType: PatientIdentifierType, sourceUuid) =>
     setUnsavedIdentifierTypes((unsavedIdentifierTypes) => ({
       ...unsavedIdentifierTypes,

@@ -71,9 +71,9 @@ async function fetchPatientIdentifierTypes(): Promise<Array<FetchedPatientIdenti
     let identifierTypes = [];
 
     patientIdentifierTypes.forEach((type) => {
-      if (type.uuid !== primaryIdentifierTypeUuid) {
-        identifierTypes.push(mapPatientIdentifierType(type, false));
-      }
+      // if (type.uuid !== primaryIdentifierTypeUuid) {
+      identifierTypes.push(mapPatientIdentifierType(type, false));
+      // }
     });
     return identifierTypes;
   }

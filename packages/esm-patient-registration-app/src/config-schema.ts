@@ -257,16 +257,6 @@ export const esmPatientRegistrationSchema = {
           value: 'Female',
           label: 'Female',
         },
-        {
-          id: 'other',
-          value: 'Other',
-          label: 'Other',
-        },
-        {
-          id: 'unknown',
-          value: 'Unknown',
-          label: 'Unknown',
-        },
       ],
       _description: 'Provide ability to configure sex options.',
     },

@@ -1,18 +1,39 @@
 import { FetchResponse, openmrsFetch, showNotification, showToast } from '@openmrs/esm-framework';
-import { generateNUPIPayload, handleClientRegistryResponse } from './patient-verification-utils';
+import { generateCRPayload } from './patient-verification-utils';
 import useSWR from 'swr';
-import useSWRImmutable from 'swr/immutable';
 import { ConceptAnswers, ConceptResponse, FormValues } from '../patient-registration/patient-registration.types';
 
-export function searchClientRegistry(identifierType: string, searchTerm: string, token: string) {
-  const url = `https://afyakenyaapi.health.go.ke/partners/registry/search/KE/${identifierType}/${searchTerm}`;
-  return fetch(url, { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.json());
-}
+export const searchClientRegistry = async (country, identifierNumber) => {
+  // searchConfigs -- parameter
+  // const query = `${searchConfigs.url}/Patient?identifier=${identifierNumber}`;
+  const query = `http://165.232.114.52:8080/fhir/Patient?_pretty=true&address-country=${country}&identifier=${identifierNumber}`;
+
+  try {
+    let res = await fetch(query);
+    return await res.json();
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+// export const RetrieveSearchConfig = (uuid) => {
+//   // https://ugandaemr-backend.mets.or.ug/openmrs/ws/rest/v1
+//   const apiUrl = `/syncfhirprofile/${uuid}?v=full`;
+//   const { data, error, isLoading, isValidating } = useSWR<{ data: { results } }, Error>(apiUrl, openmrsFetch);
+
+//   console.info(data);
+
+//   return {
+//     searchConfigs: data,
+//     isError: error,
+//     isLoading,
+//   };
+// };
 
 export function savePatientToClientRegistry(formValues: FormValues) {
-  const createdRegistryPatient = generateNUPIPayload(formValues);
-  return fetch(`https://afyakenyaapi.health.go.ke/partners/registry`, {
-    headers: { Authorization: `Bearer ${formValues.token}`, 'Content-Type': 'application/json' },
+  const createdRegistryPatient = generateCRPayload(formValues);
+  return fetch(`http://165.232.114.52:8080/fhir`, {
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
     method: 'POST',
     body: JSON.stringify(createdRegistryPatient),
   });
@@ -23,35 +44,18 @@ export async function handleSavePatientToClientRegistry(
   setValues: (values: FormValues, shouldValidate?: boolean) => void,
   inEditMode: boolean,
 ) {
-  const mode = inEditMode ? 'edit' : 'new';
-  switch (mode) {
-    case 'edit': {
-      try {
-        const searchResponse = await searchClientRegistry(
-          'national-id',
-          formValues.identifiers['nationalId'].identifierValue,
-          formValues.token,
-        );
-
-        // if client does not exists post client to registry
-        if (searchResponse?.clientExists === false) {
-          postToRegistry(formValues, setValues);
-        }
-      } catch (error) {
-        showToast({
-          title: 'Client registry error',
-          description: `${error}`,
-          millis: 10000,
-          kind: 'error',
-          critical: true,
-        });
-      }
-      return;
-    }
-    case 'new': {
-      postToRegistry(formValues, setValues);
-    }
+  try {
+    postToRegistry(formValues, setValues);
+  } catch (error) {
+    showToast({
+      title: 'Client registry error',
+      description: `${error}`,
+      millis: 10000,
+      kind: 'error',
+      critical: true,
+    });
   }
+  return;
 }
 
 export function useConceptAnswers(conceptUuid: string): { data: Array<ConceptAnswers>; isLoading: boolean } {
@@ -69,62 +73,14 @@ export function useConceptAnswers(conceptUuid: string): { data: Array<ConceptAns
   return { data: data?.data?.answers ?? [], isLoading };
 }
 
-const urlencoded = new URLSearchParams();
-urlencoded.append('client_id', 'palladium.partner.client');
-urlencoded.append('client_secret', '28f95b2a');
-urlencoded.append('grant_type', 'client_credentials');
-urlencoded.append('scope', 'DHP.Gateway DHP.Partners');
-
-const swrFetcher = async (url) => {
-  const res = await fetch(url, {
-    method: 'POST',
-    body: urlencoded,
-    redirect: 'follow',
-  });
-
-  // If the status code is not in the range 200-299,
-  // we still try to parse and throw it.
-  if (!res.ok) {
-    const error = new Error('An error occurred while fetching the data.') as any;
-    // Attach extra info to the error object.
-    error.info = await res.json();
-    error.status = res.status;
-    throw error;
-  }
-
-  return res.json();
-};
-
-export function useGlobalProperties() {
-  const { data, isLoading, error } = useSWRImmutable(
-    `https://afyakenyaidentityapi.health.go.ke/connect/token`,
-    swrFetcher,
-    { refreshInterval: 864000 },
-  );
-  return { data: data, isLoading, error };
-}
-
 async function postToRegistry(
   formValues: FormValues,
   setValues: (values: FormValues, shouldValidate?: boolean) => void,
 ) {
   try {
     const clientRegistryResponse = await savePatientToClientRegistry(formValues);
-    if (clientRegistryResponse.ok) {
-      const savedValues = await clientRegistryResponse.json();
-      const nupiIdentifier = {
-        ['nationalUniquePatientIdentifier']: {
-          identifierTypeUuid: 'f85081e2-b4be-4e48-b3a4-7994b69bb101',
-          identifierName: 'National Unique patient identifier',
-          identifierValue: savedValues['clientNumber'],
-          initialValue: savedValues['clientNumber'],
-          identifierUuid: undefined,
-          selectedSource: { uuid: '', name: '' },
-          preferred: false,
-          required: false,
-        },
-      };
-      setValues({ ...formValues, identifiers: { ...formValues.identifiers, ...nupiIdentifier } });
+    if (clientRegistryResponse.status === 200) {
+      setValues({ ...formValues, identifiers: { ...formValues.identifiers } });
       showToast({
         title: 'Posted patient to client registry successfully',
         description: `The patient has been saved to client registry`,
@@ -147,10 +103,10 @@ async function postToRegistry(
         title: responseError.title,
         description: errorMessage,
         kind: 'warning',
-        millis: 150000,
+        millis: 1500000,
       });
     }
   } catch (error) {
-    showNotification({ kind: 'error', title: 'NUPI Post failed', description: JSON.stringify(error) });
+    showNotification({ kind: 'error', title: 'Post failed', description: JSON.stringify(error) });
   }
 }

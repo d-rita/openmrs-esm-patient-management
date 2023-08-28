@@ -1,173 +1,156 @@
 import { showModal } from '@openmrs/esm-framework';
 import { FormikProps } from 'formik';
-import { ClientRegistryPatient, RegistryPatient } from './verification-types';
+import {
+  Address,
+  ClientPostBody,
+  ClientRegistryResponse,
+  CRPatientDetails,
+  Extension,
+  PatientResource,
+  PostToRegistryBody,
+} from './verification-types';
 import counties from './assets/counties.json';
 import { FormValues } from '../patient-registration/patient-registration.types';
+import { format } from 'prettier';
 
 export function handleClientRegistryResponse(
-  clientResponse: ClientRegistryPatient,
+  clientResponse: ClientRegistryResponse,
   props: FormikProps<FormValues>,
   searchTerm: string,
 ) {
-  if (clientResponse?.clientExists === false) {
-    const nupiIdentifiers = {
-      ['nationalId']: {
-        initialValue: searchTerm,
-        identifierUuid: undefined,
-        selectedSource: { uuid: '', name: '' },
-        preferred: false,
-        required: false,
-        identifierTypeUuid: '49af6cdc-7968-4abb-bf46-de10d7f4859f',
-        identifierName: 'National ID',
-        identifierValue: searchTerm,
-      },
-    };
+  if (clientResponse?.total === 0) {
     const dispose = showModal('empty-client-registry-modal', {
       onConfirm: () => {
-        props.setValues({ ...props.values, identifiers: { ...props.values.identifiers, ...nupiIdentifiers } });
+        props.setValues({ ...props.values, identifiers: { ...props.values.identifiers } });
         dispose();
       },
       close: () => dispose(),
     });
   }
 
-  if (clientResponse?.clientExists) {
+  if (clientResponse?.total === 1) {
     const {
-      client: {
-        middleName,
-        lastName,
-        firstName,
-        contact,
-        country,
-        countyOfBirth,
-        residence,
-        identifications,
-        gender,
-        dateOfBirth,
-        isAlive,
-        clientNumber,
-        educationLevel,
-        occupation,
-        maritalStatus,
-      },
-    } = clientResponse;
+      resource: { identifier, name, gender, birthDate, deceasedBoolean, address },
+    } = clientResponse.entry[0];
 
-    const nupiIdentifiers = {
-      ['nationalId']: {
-        initialValue: identifications !== undefined && identifications[0]?.identificationNumber,
-        identifierUuid: undefined,
-        selectedSource: { uuid: '', name: '' },
-        preferred: false,
-        required: false,
-        identifierTypeUuid: '49af6cdc-7968-4abb-bf46-de10d7f4859f',
-        identifierName: 'National ID',
-        identifierValue: identifications !== undefined && identifications[0]?.identificationNumber,
-      },
+    const { family, given } = name[0];
 
-      ['nationalUniquePatientIdentifier']: {
-        identifierTypeUuid: 'f85081e2-b4be-4e48-b3a4-7994b69bb101',
-        identifierName: 'National Unique patient identifier',
-        identifierValue: clientNumber,
-        initialValue: clientNumber,
-        identifierUuid: undefined,
-        selectedSource: { uuid: '', name: '' },
-        preferred: false,
-        required: false,
-      },
-    };
+    const { city, country } = address[0];
 
     const dispose = showModal('confirm-client-registry-modal', {
       onConfirm: () => {
         props.setValues({
           ...props.values,
-          familyName: lastName,
-          middleName: middleName,
-          givenName: firstName,
-          gender: gender === 'male' ? 'Male' : 'Female',
-          birthdate: new Date(dateOfBirth),
-          isDead: !isAlive,
-          attributes: {
-            'b2c38640-2603-4629-aebd-3b54f33f1e3a': contact?.primaryPhone,
-            '94614350-84c8-41e0-ac29-86bc107069be': contact?.secondaryPhone,
-            'b8d0b331-1d2d-4a9a-b741-1816f498bdb6': contact?.emailAddress ?? '',
-          },
+          familyName: family,
+          middleName: given[1]?.length ? given[1] : '',
+          givenName: given[0],
+          gender: gender,
+          birthdate: new Date(birthDate),
+          isDead: deceasedBoolean,
           address: {
-            address1: residence?.address,
-            address2: '',
-            address4: residence?.ward,
-            cityVillage: residence?.village,
-            stateProvince: residence?.subCounty,
-            countyDistrict: counties.find((county) => county.code === parseInt(residence?.county))?.name,
-            country: 'Kenya',
-            postalCode: residence?.address,
+            address1: city,
+            country: country,
           },
-          identifiers: { ...props.values.identifiers, ...nupiIdentifiers },
-          obs: {
-            '1054AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA':
-              props.values.concepts.find((concept) => concept.display?.toLowerCase() === maritalStatus?.toLowerCase())
-                ?.uuid ?? '',
-            '1712AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA':
-              props.values.concepts.find((concept) => concept.display?.toLowerCase() === educationLevel?.toLowerCase())
-                ?.uuid ?? '',
-            '1542AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA':
-              props.values.concepts.find((concept) => concept.display?.toLowerCase() === occupation?.toLowerCase())
-                ?.uuid ?? '',
-          },
+          identifiers: { ...props.values.identifiers },
         });
         dispose();
       },
       close: () => dispose(),
-      patient: clientResponse.client,
+      patient: clientResponse.entry[0]['resource'],
     });
   }
 }
 
-export function generateNUPIPayload(formValues: FormValues): RegistryPatient {
-  const educationLevel = formValues.concepts.find(
-    (concept) => concept.uuid === formValues.obs['1712AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'],
-  );
-  const occupation = formValues.concepts.find(
-    (concept) => concept.uuid === formValues.obs['1542AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'],
-  );
-  const maritalStatus = formValues.concepts.find(
-    (concept) => concept.uuid === formValues.obs['1054AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'],
-  );
+const extractAddress = function (formAddressValue) {
+  let address: Address = {
+    extension: [],
+  };
+  let extension = [];
+  if (formAddressValue['country']) {
+    address.country = formAddressValue['country'];
+  }
+  if (formAddressValue['city']) {
+    address.city = formAddressValue['city'];
+  }
+  if (formAddressValue['countyDistrict']) {
+    address.district = formAddressValue['countyDistrict'];
+  }
+  if (formAddressValue['stateProvince']) {
+    extension.push({
+      valueString: formAddressValue['stateProvince'],
+      url: 'http://fhir.openmrs.org/ext/address#county',
+    });
+  }
+  if (formAddressValue['address3']) {
+    extension.push({
+      valueString: formAddressValue['address3'],
+      url: 'http://fhir.openmrs.org/ext/address#subcounty',
+    });
+  }
+  if (formAddressValue['address4']) {
+    extension.push({
+      valueString: formAddressValue['address4'],
+      url: 'http://fhir.openmrs.org/ext/address#parish',
+    });
+  }
+  if (formAddressValue['address5']) {
+    extension.push({
+      valueString: formAddressValue['address5'],
+      url: 'http://fhir.openmrs.org/ext/address#village',
+    });
+  }
+  if (extension.length) {
+    address.extension.push({
+      extension: extension,
+    });
+  } else {
+    delete address.extension;
+  }
 
-  let createRegistryPatient: RegistryPatient = {
-    firstName: formValues?.givenName,
-    middleName: formValues?.middleName,
-    lastName: formValues?.familyName,
-    gender: formValues?.gender === 'Male' ? 'male' : 'female',
-    dateOfBirth: new Date(formValues.birthdate).toISOString(),
-    isAlive: !formValues.isDead,
-    residence: {
-      county: `0${counties.find((county) => county.name.includes(formValues.address['countyDistrict']))?.code}`,
-      subCounty: formValues.address['stateProvince']?.toLocaleLowerCase(),
-      ward: formValues.address['address4']?.toLocaleLowerCase(),
-      village: formValues.address['cityVillage'],
-      landmark: formValues.address['address2'],
-      address: formValues.address['postalCode'],
-    },
-    nextOfKins: [],
-    contact: {
-      primaryPhone: formValues.attributes['b2c38640-2603-4629-aebd-3b54f33f1e3a'],
-      secondaryPhone: formValues.attributes['94614350-84c8-41e0-ac29-86bc107069be'],
-      emailAddress: formValues.attributes['b8d0b331-1d2d-4a9a-b741-1816f498bdb6'],
-    },
-    country: 'KE',
-    countyOfBirth: `0${counties.find((county) => county.name.includes(formValues.address['countyDistrict']))?.code}`,
-    educationLevel: educationLevel?.display?.toLowerCase() ?? '',
-    religion: '',
-    occupation: occupation?.display?.toLowerCase() ?? '',
-    maritalStatus: maritalStatus?.display?.toLowerCase() ?? '',
-    originFacilityKmflCode: '',
-    nascopCCCNumber: '',
-    identifications: [
+  return address;
+};
+
+const extractIdentifiers = (identifiers) => {
+  let arr = [];
+  Object.values(identifiers).forEach((id) => {
+    arr.push({
+      use: 'usual',
+      id: id['identifierTypeUuid'],
+      type: {
+        text: id['identifierName'],
+      },
+      value: id['identifierValue'],
+    });
+  });
+  return arr;
+};
+
+export function generateCRPayload(formValues: FormValues): ClientPostBody {
+  let clientPostBody: ClientPostBody = {
+    resourceType: 'Bundle',
+    type: 'transaction',
+    entry: [
       {
-        identificationType: 'national-id',
-        identificationNumber: formValues.identifiers['nationalId']?.identifierValue,
+        resource: {
+          name: [
+            {
+              family: formValues?.familyName,
+              given: [formValues?.givenName, formValues?.middleName],
+            },
+          ],
+          gender: formValues?.gender.toLowerCase(),
+          birthDate: new Date(formValues?.birthdate).toISOString(),
+          deceasedBoolean: !formValues?.isDead,
+          address: [extractAddress(formValues.address)],
+          identifier: extractIdentifiers(formValues.identifiers),
+          resourceType: 'Patient',
+        },
+        request: {
+          method: 'PUT',
+          url: `Patient/${formValues.patientUuid}`,
+        },
       },
     ],
   };
-  return createRegistryPatient;
+  return clientPostBody;
 }

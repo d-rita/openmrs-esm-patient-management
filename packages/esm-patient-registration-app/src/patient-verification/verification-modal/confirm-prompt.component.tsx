@@ -21,11 +21,14 @@ interface ConfirmPromptProps {
 
 const ConfirmPrompt: React.FC<ConfirmPromptProps> = ({ close, onConfirm, patient }) => {
   const { t } = useTranslation();
+  const { name, gender, birthDate } = patient;
+
+  const { family, given } = name[0];
   return (
     <>
       <div className="cds--modal-header">
         <h3 className="cds--modal-header__heading">
-          {t('clientRegistryEmpty', `Patient ${patient?.firstName} ${patient?.lastName} found`)}
+          {t('clientRegistryReturned', `Patient ${given} ${family} found`)}
         </h3>
       </div>
       <div className="cds--modal-content">
@@ -39,21 +42,13 @@ const ConfirmPrompt: React.FC<ConfirmPromptProps> = ({ close, onConfirm, patient
           <ExtensionSlot
             style={{ display: 'flex', alignItems: 'center' }}
             extensionSlotName="patient-photo-slot"
-            state={{ patientName: `${patient?.firstName} ${patient?.lastName}` }}
+            state={{ patientName: `${given} ${family}` }}
           />
           <div style={{ width: '100%', marginLeft: '0.625rem' }}>
-            <PatientInfo
-              label={t('patientName', 'Patient name')}
-              value={`${patient?.firstName} ${patient?.lastName}`}
-            />
-            <PatientInfo
-              label={t('nationalId', 'National ID')}
-              value={patient?.identifications[0]?.identificationNumber}
-            />
-            <PatientInfo label={t('age', 'Age')} value={age(patient?.dateOfBirth)} />
-            <PatientInfo label={t('dateOfBirth', 'Date of birth')} value={formatDate(new Date(patient?.dateOfBirth))} />
-            <PatientInfo label={t('gender', 'Gender')} value={capitalize(patient?.gender)} />
-            <PatientInfo label={t('nascopNumber', 'Nascop facility no')} value={capitalize(patient?.nascopCCCNumber)} />
+            <PatientInfo label={t('patientName', 'Patient name')} value={`${given} ${family}`} />
+            <PatientInfo label={t('age', 'Age')} value={age(birthDate)} />
+            <PatientInfo label={t('dateOfBirth', 'Date of Birth')} value={formatDate(new Date(birthDate))} />
+            <PatientInfo label={t('gender', 'Gender')} value={capitalize(gender)} />
           </div>
         </div>
       </div>
@@ -61,7 +56,7 @@ const ConfirmPrompt: React.FC<ConfirmPromptProps> = ({ close, onConfirm, patient
         <Button kind="secondary" onClick={close}>
           {t('cancel', 'Cancel')}
         </Button>
-        <Button onClick={onConfirm}>{t('useValues', 'Use values')}</Button>
+        <Button onClick={onConfirm}>{t('proceed', 'Proceed')}</Button>
       </div>
     </>
   );
