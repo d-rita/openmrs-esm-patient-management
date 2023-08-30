@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Tile, ComboBox, Layer, Button, Search, InlineLoading } from '@carbon/react';
-import styles from './patient-verification.scss';
+import { showToast } from '@openmrs/esm-framework';
+import { Button, InlineLoading, Layer, Search, Select, SelectItem, Tile } from '@carbon/react';
+import { FormikProps } from 'formik';
 import { countries } from './assets/verification-assets';
 import { searchClientRegistry } from './patient-verification-hook';
-import { showToast } from '@openmrs/esm-framework';
 import { handleClientRegistryResponse } from './patient-verification-utils';
-import { FormikProps } from 'formik';
 import { FormValues } from '../patient-registration/patient-registration.types';
+import styles from './patient-verification.scss';
 
 interface PatientVerificationProps {
   props: FormikProps<FormValues>;
@@ -50,46 +50,54 @@ const PatientVerification: React.FC<PatientVerificationProps> = ({ props }) => {
   //     </Tile>
   //   );
   // }
+
   return (
     <div id={'patientVerification'}>
       <h3 className={styles.productiveHeading02} style={{ color: '#161616' }}>
-        {t('clientVerificationWithClientRegistry', 'Client verification with client registry')}
+        {t('clientVerificationWithClientRegistry', 'Client registry verification')}
       </h3>
       <div style={{ margin: '1rem 0 1rem' }}>
-        {/* <Layer>
-          {isLoading && <InlineLoading status="active" iconDescription="Loading" description="Loading data..." />}
-        </Layer> */}
-        <Tile className={styles.verificationWrapper}>
-          <Layer>
-            <ComboBox
-              ariaLabel={t('selectCountry', 'Select country')}
-              id="selectCountry"
-              items={countries}
-              itemToString={(item) => item?.name ?? ''}
-              label="Combo box menu options"
-              titleText={t('selectCountry', 'Select Country')}
-              initialSelectedItem={countries[0]}
-              onChange={({ selectedItem }) => {
-                return setVerificationCriteria({ ...verificationCriteria, country: selectedItem.name });
-              }}
-            />
-          </Layer>
-          <Layer>
-            <Search
-              id="search-1"
-              autoFocus
-              placeHolderText="Search"
-              // disabled={!verificationCriteria.identifierType}
-              onChange={(event) => setVerificationCriteria({ ...verificationCriteria, searchTerm: event.target.value })}
-            />
-          </Layer>
-          {!isLoadingSearch ? (
-            <Button disabled={!verificationCriteria.searchTerm} size="md" onClick={handleSearch}>
-              {t('validate', 'Validate')}
-            </Button>
-          ) : (
-            <InlineLoading status="active" iconDescription="Loading" description="Searching client registry" />
-          )}
+        <Tile>
+          <div className={styles.verificationWrapper}>
+            <Layer className={styles.layer}>
+              <Select
+                ariaLabel={t('selectCountry', 'Select country')}
+                id="selectCountry"
+                items={countries}
+                itemToString={(item) => item?.name ?? ''}
+                labelText={t('selectCountry', 'Select Country')}
+                initialSelectedItem={countries[0]}
+                onChange={(event) => {
+                  return setVerificationCriteria({ ...verificationCriteria, country: event.target.value });
+                }}>
+                {countries.map((country) => (
+                  <SelectItem key={country.name} text={country.name} value={country.name}>
+                    {country.name}
+                  </SelectItem>
+                ))}
+              </Select>
+            </Layer>
+            <Layer className={styles.layer}>
+              <Search
+                id="registrySearch"
+                autoFocus
+                placeholder="Enter identifier"
+                // disabled={!verificationCriteria.identifierType}
+                onChange={(event) =>
+                  setVerificationCriteria({ ...verificationCriteria, searchTerm: event.target.value })
+                }
+              />
+            </Layer>
+            <div>
+              {!isLoadingSearch ? (
+                <Button disabled={!verificationCriteria.searchTerm} size="md" onClick={handleSearch}>
+                  {t('validate', 'Validate')}
+                </Button>
+              ) : (
+                <InlineLoading status="active" iconDescription="Loading" description="Searching client registry" />
+              )}
+            </div>
+          </div>
         </Tile>
       </div>
     </div>

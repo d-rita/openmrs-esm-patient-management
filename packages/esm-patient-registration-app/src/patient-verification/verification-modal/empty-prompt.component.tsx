@@ -12,13 +12,15 @@ const EmptyPrompt: React.FC<EmptyPromptProps> = ({ close, onConfirm }) => {
   return (
     <>
       <div className="cds--modal-header">
-        <h3 className="cds--modal-header__heading">{t('clientRegistryEmpty', 'Create & Post Patient')}</h3>
+        <h3 className="cds--modal-header__heading">
+          {t('noMatchingRecordsFoundInRegistry', 'No matching records found')}
+        </h3>
       </div>
       <div className="cds--modal-content">
         <p>
           {t(
             'patientNotFound',
-            'The patient records could not be found in Client registry, do you want to continue to create and post patient to registry',
+            "Enter the patient's details and click the Post to registry button to record their data before completing registration.",
           )}
         </p>
       </div>

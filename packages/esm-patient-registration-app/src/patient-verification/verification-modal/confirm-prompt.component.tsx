@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@carbon/react';
 import { age, ExtensionSlot, formatDate } from '@openmrs/esm-framework';
 import capitalize from 'lodash-es/capitalize';
+import styles from './confirm-prompt.scss';
 
 const PatientInfo: React.FC<{ label: string; value: string }> = ({ label, value }) => {
   return (
@@ -27,21 +28,20 @@ const ConfirmPrompt: React.FC<ConfirmPromptProps> = ({ close, onConfirm, patient
   return (
     <>
       <div className="cds--modal-header">
-        <h3 className="cds--modal-header__heading">
-          {t('clientRegistryReturned', `Patient ${given} ${family} found`)}
-        </h3>
+        <h3 className="cds--modal-header__heading">Patient found</h3>
       </div>
       <div className="cds--modal-content">
         <p>
-          {t(
-            'patientDetailsFound',
-            'Patient information found in the registry, do you want to use the information to continue with registration?',
-          )}
+          Data for{' '}
+          <b className={styles.name}>
+            {given} {family}
+          </b>{' '}
+          was found in the client registry. Do you want to use this data to register the patient?
         </p>
         <div style={{ display: 'flex', margin: '1rem' }}>
           <ExtensionSlot
             style={{ display: 'flex', alignItems: 'center' }}
-            extensionSlotName="patient-photo-slot"
+            name="patient-photo-slot"
             state={{ patientName: `${given} ${family}` }}
           />
           <div style={{ width: '100%', marginLeft: '0.625rem' }}>
