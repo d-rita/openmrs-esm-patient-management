@@ -1,62 +1,22 @@
-import { FetchResponse, openmrsFetch, showNotification, showToast } from '@openmrs/esm-framework';
-import { generateCRPayload } from './patient-verification-utils';
+import { FetchResponse, openmrsFetch, showNotification, showToast, showModal } from '@openmrs/esm-framework';
+import { generateFHIRPayload } from './patient-verification-utils';
 import useSWR from 'swr';
 import { ConceptAnswers, ConceptResponse, FormValues } from '../patient-registration/patient-registration.types';
+import { patientRegistries } from './verification-constants';
 
-export const searchClientRegistry = async (country, identifierNumber) => {
-  // searchConfigs -- parameter
-  // const query = `${searchConfigs.url}/Patient?identifier=${identifierNumber}`;
-  const query = `http://165.232.114.52:8080/fhir/Patient?_pretty=true&address-country=${country}&identifier=${identifierNumber}`;
-
-  try {
-    let res = await fetch(query);
-    return await res.json();
-  } catch (error) {
-    console.error(error);
+export const searchRegistry = async (searchParams) => {
+  const { registry, identifier } = searchParams;
+  let selectedRegistry = patientRegistries.filter((r) => r.name === registry);
+  if (selectedRegistry.length) {
+    const query = `${selectedRegistry[0].url}/Patient?identifier=${identifier}`;
+    try {
+      let res = await fetch(query);
+      return await res.json();
+    } catch (error) {
+      showNotification({ kind: 'error', title: `Error connecting to ${registry}`, description: JSON.stringify(error) });
+    }
   }
 };
-
-// export const RetrieveSearchConfig = (uuid) => {
-//   // https://ugandaemr-backend.mets.or.ug/openmrs/ws/rest/v1
-//   const apiUrl = `/syncfhirprofile/${uuid}?v=full`;
-//   const { data, error, isLoading, isValidating } = useSWR<{ data: { results } }, Error>(apiUrl, openmrsFetch);
-
-//   console.info(data);
-
-//   return {
-//     searchConfigs: data,
-//     isError: error,
-//     isLoading,
-//   };
-// };
-
-export function savePatientToClientRegistry(formValues: FormValues) {
-  const createdRegistryPatient = generateCRPayload(formValues);
-  return fetch(`http://165.232.114.52:8080/fhir`, {
-    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-    method: 'POST',
-    body: JSON.stringify(createdRegistryPatient),
-  });
-}
-
-export async function handleSavePatientToClientRegistry(
-  formValues: FormValues,
-  setValues: (values: FormValues, shouldValidate?: boolean) => void,
-  inEditMode: boolean,
-) {
-  try {
-    postToRegistry(formValues, setValues);
-  } catch (error) {
-    showToast({
-      title: 'Client registry error',
-      description: `${error}`,
-      millis: 10000,
-      kind: 'error',
-      critical: true,
-    });
-  }
-  return;
-}
 
 export function useConceptAnswers(conceptUuid: string): { data: Array<ConceptAnswers>; isLoading: boolean } {
   const { data, error, isLoading } = useSWR<FetchResponse<ConceptResponse>, Error>(
@@ -73,21 +33,34 @@ export function useConceptAnswers(conceptUuid: string): { data: Array<ConceptAns
   return { data: data?.data?.answers ?? [], isLoading };
 }
 
+export function savePatientToRegistry(formValues: FormValues, registry) {
+  const createdRegistryPatient = generateFHIRPayload(formValues);
+  let selectedRegistry = patientRegistries.filter((r) => r.name === registry);
+  if (selectedRegistry.length) {
+    return fetch(`${selectedRegistry[0].url}/fhir`, {
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      method: 'POST',
+      body: JSON.stringify(createdRegistryPatient),
+    });
+  }
+}
+
 async function postToRegistry(
   formValues: FormValues,
   setValues: (values: FormValues, shouldValidate?: boolean) => void,
+  selectedRegistry,
 ) {
   try {
-    const clientRegistryResponse = await savePatientToClientRegistry(formValues);
-    if (clientRegistryResponse.status === 200) {
+    const registryResponse = await savePatientToRegistry(formValues, selectedRegistry);
+    if (registryResponse.status === 200) {
       setValues({ ...formValues, identifiers: { ...formValues.identifiers } });
       showToast({
-        title: 'Posted patient to client registry successfully',
-        description: `The patient has been saved to client registry`,
+        title: `Posted patient to ${selectedRegistry} successfully`,
+        description: `The patient has been saved to ${selectedRegistry}`,
         kind: 'success',
       });
     } else {
-      const responseError = await clientRegistryResponse.json();
+      const responseError = await registryResponse.json();
       const errorMessage = Object.values(responseError.errors ?? {})
         .map((error: any) => error.join())
         .toString();
@@ -107,6 +80,29 @@ async function postToRegistry(
       });
     }
   } catch (error) {
-    showNotification({ kind: 'error', title: 'Post failed', description: JSON.stringify(error) });
+    showNotification({
+      kind: 'error',
+      title: `Post to ${selectedRegistry} failed`,
+      description: JSON.stringify(error),
+    });
   }
+}
+
+export async function handleSavePatientToRegistry(
+  formValues: FormValues,
+  setValues: (values: FormValues, shouldValidate?: boolean) => void,
+  selectedRegistry,
+) {
+  try {
+    postToRegistry(formValues, setValues, selectedRegistry);
+  } catch (error) {
+    showToast({
+      title: `${selectedRegistry} error`,
+      description: `${error}`,
+      millis: 10000,
+      kind: 'error',
+      critical: true,
+    });
+  }
+  return;
 }

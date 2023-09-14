@@ -1,35 +1,32 @@
 import React, { useState, useEffect, useContext, useMemo, useRef } from 'react';
 import { Button, Link } from '@carbon/react';
-import { XAxis, ShareKnowledge } from '@carbon/react/icons';
-import { Router, useLocation, useParams } from 'react-router-dom';
+import { XAxis } from '@carbon/react/icons';
+import { useLocation, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Formik, Form, FormikHelpers } from 'formik';
-import { createErrorHandler, showToast, useConfig, interpolateUrl, usePatient } from '@openmrs/esm-framework';
+import {
+  createErrorHandler,
+  showToast,
+  useConfig,
+  interpolateUrl,
+  usePatient,
+  showModal,
+} from '@openmrs/esm-framework';
 import { validationSchema as initialSchema } from './validation/patient-registration-validation';
-import { FormValues, CapturePhotoProps, PatientIdentifierValue } from './patient-registration.types';
+import { FormValues, CapturePhotoProps } from './patient-registration.types';
 import { PatientRegistrationContext } from './patient-registration-context';
 import { SavePatientForm, SavePatientTransactionManager } from './form-manager';
 import { usePatientPhoto } from './patient-registration.resource';
 import { DummyDataInput } from './input/dummy-data/dummy-data-input.component';
-import {
-  cancelRegistration,
-  filterUndefinedPatientIdenfier,
-  parseAddressTemplateXml,
-  scrollIntoView,
-} from './patient-registration-utils';
-import {
-  useInitialAddressFieldValues,
-  useInitialFormValues,
-  usePatientObs,
-  usePatientUuidMap,
-} from './patient-registration-hooks';
+import { cancelRegistration, filterUndefinedPatientIdenfier, scrollIntoView } from './patient-registration-utils';
+import { useInitialAddressFieldValues, useInitialFormValues, usePatientUuidMap } from './patient-registration-hooks';
 import { ResourcesContext } from '../offline.resources';
 import { builtInSections, RegistrationConfig, SectionDefinition } from '../config-schema';
 import { SectionWrapper } from './section/section-wrapper.component';
 import BeforeSavePrompt from './before-save-prompt';
 import styles from './patient-registration.scss';
 import PatientVerification from '../patient-verification/patient-verification.component';
-import { handleSavePatientToClientRegistry } from '../patient-verification/patient-verification-hook';
+import { handleSavePatientToRegistry } from '../patient-verification/patient-verification-hook';
 
 let exportedInitialFormValuesForTesting = {} as FormValues;
 
@@ -60,6 +57,10 @@ export const PatientRegistration: React.FC<PatientRegistrationProps> = ({ savePa
   const [enableClientRegistry, setEnableClientRegistry] = useState(
     inEditMode ? initialFormValues['identifiers'] : false,
   );
+  const [verificationSearchParams, setVerificationSearchParams] = useState({
+    registry: '',
+    identifier: '',
+  });
 
   useEffect(() => {
     exportedInitialFormValuesForTesting = initialFormValues;
@@ -76,6 +77,17 @@ export const PatientRegistration: React.FC<PatientRegistrationProps> = ({ savePa
   }, [config.sections, config.sectionDefinitions]);
 
   const onFormSubmit = async (values: FormValues, helpers: FormikHelpers<FormValues>) => {
+    if (verificationSearchParams.registry.length) {
+      const dispose = showModal('post-to-registry-modal', {
+        onConfirm: () => {
+          handleSavePatientToRegistry(values, helpers.setValues, verificationSearchParams.registry);
+          dispose();
+        },
+        close: () => dispose(),
+        registry: verificationSearchParams.registry,
+        isOffline,
+      });
+    }
     const abortController = new AbortController();
     helpers.setSubmitting(true);
 
@@ -175,25 +187,13 @@ export const PatientRegistration: React.FC<PatientRegistrationProps> = ({ savePa
                   </div>
                 ))}
                 <Button
-                  renderIcon={ShareKnowledge}
-                  disabled={!currentSession || !initialFormValues['identifiers']}
-                  onClick={() => {
-                    setEnableClientRegistry(true);
-                    props.isValid
-                      ? handleSavePatientToClientRegistry(props.values, props.setValues, inEditMode)
-                      : props.validateForm().then((errors) => displayErrors(errors));
-                  }}
-                  className={styles.submitButton}>
-                  {t('postToRegistry', 'Post to registry')}
-                </Button>
-                <Button
                   className={styles.submitButton}
                   type="submit"
                   onClick={() => props.validateForm().then((errors) => displayErrors(errors))}
                   // Current session and identifiers are required for patient registration.
                   // If currentSession or identifierTypes are not available, then the
                   // user should be blocked to register the patient.
-                  disabled={!enableClientRegistry}>
+                  disabled={!currentSession || !initialFormValues['identifiers']}>
                   {inEditMode ? t('updatePatient', 'Update Patient') : t('registerPatient', 'Register Patient')}
                 </Button>
                 <Button className={styles.cancelButton} kind="tertiary" onClick={cancelRegistration}>
@@ -216,7 +216,11 @@ export const PatientRegistration: React.FC<PatientRegistrationProps> = ({ savePa
                   initialFormValues: props.initialValues,
                   setInitialFormValues,
                 }}>
-                <PatientVerification props={props} />
+                <PatientVerification
+                  formProps={props}
+                  verificationParams={verificationSearchParams}
+                  setVerificationParams={setVerificationSearchParams}
+                />
                 {sections.map((section, index) => (
                   <SectionWrapper
                     key={`registration-section-${section.id}`}

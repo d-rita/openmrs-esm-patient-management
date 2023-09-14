@@ -52,14 +52,20 @@
       "offline": true
     },
     {
-      "component": "emptyClientRegistryModal",
-      "name": "empty-client-registry-modal",
+      "component": "emptyRegistryModal",
+      "name": "empty-registry-modal",
       "online": true,
       "offline": true
     },
     {
-      "component": "confirmClientRegistryModal",
-      "name": "confirm-client-registry-modal",
+      "component": "confirmRegistryModal",
+      "name": "confirm-registry-modal",
+      "online": true,
+      "offline": true
+    },
+    {
+      "component": "postToRegistryModal",
+      "name": "post-to-registry-modal",
       "online": true,
       "offline": true
     }

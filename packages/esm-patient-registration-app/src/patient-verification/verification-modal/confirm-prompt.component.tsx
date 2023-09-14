@@ -36,7 +36,7 @@ const ConfirmPrompt: React.FC<ConfirmPromptProps> = ({ close, onConfirm, patient
           <b className={styles.name}>
             {given} {family}
           </b>{' '}
-          was found in the client registry. Do you want to use this data to register the patient?
+          was found in the registry. Do you want to use this data to register the patient?
         </p>
         <div style={{ display: 'flex', margin: '1rem' }}>
           <ExtensionSlot

@@ -1,7 +1,9 @@
 @use '@carbon/colors';
+@import '~@openmrs/esm-styleguide/src/vars';
 @import '../patient-registration/patient-registration.scss';
 
 .verificationWrapper {
+  margin: 0;
   .layer {
     flex: 1;
   }
@@ -41,4 +43,26 @@
   :global(.cds--layer-two) {
     margin-right: 1rem;
   }
+}
+
+.fullWidth {
+  width: 100%;
+}
+
+.expandBtnSection {
+  margin: 0.5rem 0 1rem 0;
+  button {
+    padding: 0;
+    color: colors.$blue-70;
+    border: none;
+    background-color: colors.$cool-gray-10;
+    text-decoration: underline;
+  }
+  button:hover {
+    color: colors.$blue-90;
+  }
+}
+
+.fieldInput {
+  outline: none;
 }

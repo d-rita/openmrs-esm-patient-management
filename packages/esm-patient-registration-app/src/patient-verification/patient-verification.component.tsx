@@ -1,40 +1,63 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { showToast } from '@openmrs/esm-framework';
-import { Button, InlineLoading, Layer, Search, Select, SelectItem, Tile } from '@carbon/react';
+import { Tile, Checkbox } from '@carbon/react';
 import { FormikProps } from 'formik';
 import { countries } from './assets/verification-assets';
-import { searchClientRegistry } from './patient-verification-hook';
-import { handleClientRegistryResponse } from './patient-verification-utils';
+import { searchRegistry } from './patient-verification-hook';
+import { generateUICFromVerification, handleRegistryResponse } from './patient-verification-utils';
 import { FormValues } from '../patient-registration/patient-registration.types';
 import styles from './patient-verification.scss';
+import VerificationSection from './verification-forms/verification-section-component';
+import { VerificationSearchParams } from './verification-types';
 
 interface PatientVerificationProps {
-  props: FormikProps<FormValues>;
+  formProps: FormikProps<FormValues>;
+  verificationParams: VerificationSearchParams;
+  setVerificationParams: (params: VerificationSearchParams) => void;
 }
 
-const PatientVerification: React.FC<PatientVerificationProps> = ({ props }) => {
+const PatientVerification: React.FC<PatientVerificationProps> = ({
+  formProps,
+  verificationParams,
+  setVerificationParams,
+}) => {
   const { t } = useTranslation();
-  // const { data, isLoading, error } = useGlobalProperties();
-  const [verificationCriteria, setVerificationCriteria] = useState({
-    searchTerm: '',
+  const [advancedSearchParams, setAdvancedSearchParams] = useState({
+    firstName: '',
+    familyName: '',
+    otherName: '',
+    dateOfBirth: '',
+    gender: '',
     country: countries[0]['name'],
   });
   const [isLoadingSearch, setIsLoadingSearch] = useState(false);
 
-  const handleSearch = async () => {
+  const [verifyClient, setVerifyClient] = useState(false);
+
+  useEffect(() => {
+    if (advancedSearchParams.dateOfBirth.length !== 0 && advancedSearchParams.gender.length !== 0) {
+      const UIC = generateUICFromVerification(advancedSearchParams);
+      setVerificationParams({
+        ...verificationParams,
+        identifier: UIC,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [advancedSearchParams]);
+
+  const handleSearch = async (evt: React.FormEvent<HTMLFormElement>) => {
+    evt.preventDefault();
+    evt.stopPropagation();
     setIsLoadingSearch(true);
     try {
-      const clientRegistryResponse = await searchClientRegistry(
-        verificationCriteria.country,
-        verificationCriteria.searchTerm,
-      );
+      const registryResponse = await searchRegistry(verificationParams);
       setIsLoadingSearch(false);
-      handleClientRegistryResponse(clientRegistryResponse, props, verificationCriteria.searchTerm);
+      handleRegistryResponse(registryResponse, formProps, advancedSearchParams, verificationParams.identifier);
     } catch (error) {
       showToast({
         title: 'Client registry error',
-        description: `Please reload the registration page and re-try again, if the issue persist contact system administrator`,
+        description: `Please reload the registration page and try again, if the issue persist contact system administrator`,
         millis: 10000,
         kind: 'error',
         critical: true,
@@ -43,63 +66,32 @@ const PatientVerification: React.FC<PatientVerificationProps> = ({ props }) => {
     }
   };
 
-  // if (error) {
-  //   return (
-  //     <Tile className={styles.errorWrapper}>
-  //       <p>Error occurred while reaching the client registry, please proceed with registration and try again later</p>
-  //     </Tile>
-  //   );
-  // }
-
   return (
-    <div id={'patientVerification'}>
-      <h3 className={styles.productiveHeading02} style={{ color: '#161616' }}>
-        {t('clientVerificationWithClientRegistry', 'Client registry verification')}
-      </h3>
-      <div style={{ margin: '1rem 0 1rem' }}>
+    <div id={'patientVerification'} style={{ margin: '0 0 0.5rem 0' }}>
+      <Checkbox
+        className=""
+        labelText="Verify Patient with Registry"
+        id="patient-verification-check"
+        checked={verifyClient}
+        onChange={(e, { checked }) => setVerifyClient(checked)}
+      />
+      {verifyClient ? (
         <Tile>
-          <div className={styles.verificationWrapper}>
-            <Layer className={styles.layer}>
-              <Select
-                ariaLabel={t('selectCountry', 'Select country')}
-                id="selectCountry"
-                items={countries}
-                itemToString={(item) => item?.name ?? ''}
-                labelText={t('selectCountry', 'Select Country')}
-                initialSelectedItem={countries[0]}
-                onChange={(event) => {
-                  return setVerificationCriteria({ ...verificationCriteria, country: event.target.value });
-                }}>
-                {countries.map((country) => (
-                  <SelectItem key={country.name} text={country.name} value={country.name}>
-                    {country.name}
-                  </SelectItem>
-                ))}
-              </Select>
-            </Layer>
-            <Layer className={styles.layer}>
-              <Search
-                id="registrySearch"
-                autoFocus
-                placeholder="Enter identifier"
-                // disabled={!verificationCriteria.identifierType}
-                onChange={(event) =>
-                  setVerificationCriteria({ ...verificationCriteria, searchTerm: event.target.value })
-                }
-              />
-            </Layer>
-            <div>
-              {!isLoadingSearch ? (
-                <Button disabled={!verificationCriteria.searchTerm} size="md" onClick={handleSearch}>
-                  {t('validate', 'Validate')}
-                </Button>
-              ) : (
-                <InlineLoading status="active" iconDescription="Loading" description="Searching client registry" />
-              )}
-            </div>
-          </div>
+          <h4 className={styles.productiveHeading02} style={{ color: '#161616', margin: '0 0 0.5rem 0' }}>
+            {t('patientVerification', 'Patient Verification')}
+          </h4>
+          <VerificationSection
+            handleSearch={handleSearch}
+            setAdvancedSearchParams={setAdvancedSearchParams}
+            advancedSearchParams={advancedSearchParams}
+            isLoading={isLoadingSearch}
+            basicSearchParams={verificationParams}
+            setBasicSearchParams={setVerificationParams}
+          />
         </Tile>
-      </div>
+      ) : (
+        ''
+      )}
     </div>
   );
 };

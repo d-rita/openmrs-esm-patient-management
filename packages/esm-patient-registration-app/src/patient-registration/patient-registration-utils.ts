@@ -122,7 +122,7 @@ export function getFormValuesFromFhirPatient(patient: fhir.Patient) {
 
   result.gender = capitalize(patient.gender);
   result.birthdate = patient.birthDate ? parseDate(patient.birthDate) : undefined;
-  result.telephoneNumber = patient.telecom ? patient.telecom[0].value : '';
+  result.telephoneNumber = patient.telecom ? (patient.telecom[0] ? patient.telecom[0].value : '') : '';
 
   if (patient.deceasedBoolean || patient.deceasedDateTime) {
     result.isDead = true;

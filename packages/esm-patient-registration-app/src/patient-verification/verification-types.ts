@@ -1,4 +1,9 @@
-export interface ClientRegistryResponse {
+export interface VerificationSearchParams {
+  registry: string;
+  identifier: string;
+}
+
+export interface RegistryResponse {
   resourceType?: string;
   type?: string;
   total?: number;
@@ -164,4 +169,12 @@ export interface PostToRegistryBody {
     };
     request: Request;
   }>;
+}
+export interface AdvancedSearchParameters {
+  firstName?: string;
+  familyName?: string;
+  otherName?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  country?: string;
 }
